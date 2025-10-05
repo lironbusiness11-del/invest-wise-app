@@ -1,0 +1,124 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { Question, UserProgress, User } from "@/entities/all";
+import { useLocation, useNavigate, createSearchParams } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { motion } from "framer-motion";
+import { ArrowRight, BookOpen, BarChart, TrendingUp, Cpu } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+const practiceTopics = [
+    { slug: 'investment-fundamentals', title: 'יסודות ההשקעה', icon: BookOpen, description: 'ריבית דריבית, אינפלציה ודיבידנדים.' },
+    { slug: 'asset-types', title: 'סוגי נכסים', icon: BarChart, description: 'מניות, אג"ח וקרנות סל (ETF).' },
+    { slug: 'golden-rules', title: 'כללי הזהב', icon: TrendingUp, description: 'פיזור חכם, DCA והתמודדות רגשית.' },
+    { slug: 'technical-analysis', title: 'ניתוח טכני', icon: Cpu, description: 'גרפים, מגמות, תבניות ואינדיקטורים.' }
+];
+
+const PracticeCategorySelector = ({ onSelectCategory }) => (
+    <div className="max-w-4xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 text-center"
+        >
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            תרגול לפי נושאים
+          </h1>
+          <p className="text-lg text-gray-600">
+            בחר נושא כדי לתרגל ולחזק את הידע שלך.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {practiceTopics.map((topic, index) => (
+                <motion.div
+                    key={topic.slug}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                >
+                    <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
+                        <CardHeader>
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
+                                    <topic.icon className="w-6 h-6 text-blue-600" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold">{topic.title}</CardTitle>
+                                    <p className="text-gray-500 text-sm">{topic.description}</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 flex flex-col justify-end">
+                            <Button onClick={() => onSelectCategory(topic.slug)} className="w-full mt-4">
+                                התחל תרגול
+                                <ArrowRight className="w-4 h-4 mr-2" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            ))}
+        </div>
+    </div>
+);
+
+const PracticeOptionsSelector = ({ onStartPractice, category }) => {
+    const topic = practiceTopics.find(t => t.slug === category);
+    return (
+        <div className="max-w-md mx-auto text-center">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                <h2 className="text-3xl font-bold mb-2">תרגול בנושא: {topic.title}</h2>
+                <p className="text-gray-600 mb-8">בחר את כמות השאלות שברצונך לתרגל.</p>
+                <div className="space-y-4">
+                    {[5, 10, 20].map(count => (
+                        <motion.div key={count} whileHover={{ scale: 1.05 }}>
+                            <Button
+                                onClick={() => onStartPractice(count)}
+                                variant="outline"
+                                className="w-full py-6 text-lg"
+                            >
+                                {count} שאלות
+                            </Button>
+                        </motion.div>
+                    ))}
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+export default function PracticePage() {
+    const [view, setView] = useState('select_category'); // select_category, select_options
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const navigate = useNavigate();
+
+    const handleSelectCategory = (categorySlug) => {
+        setSelectedCategory(categorySlug);
+        setView('select_options');
+    };
+
+    const handleStartPractice = (questionCount) => {
+        let lessonSlugs = [];
+        if (selectedCategory === 'technical-analysis') {
+            lessonSlugs = ['technical-analysis-philosophy', 'technical-analysis-patterns', 'technical-analysis-volume'];
+        } else {
+            lessonSlugs = [selectedCategory];
+        }
+
+        navigate({
+            pathname: createPageUrl('Quiz'),
+            search: `?${createSearchParams({
+                type: 'practice',
+                slugs: lessonSlugs,
+                limit: questionCount
+            })}`
+        });
+    };
+
+    return (
+        <div className="min-h-screen p-6 flex items-center justify-center">
+            {view === 'select_category' && <PracticeCategorySelector onSelectCategory={handleSelectCategory} />}
+            {view === 'select_options' && <PracticeOptionsSelector onStartPractice={handleStartPractice} category={selectedCategory} />}
+        </div>
+    );
+}

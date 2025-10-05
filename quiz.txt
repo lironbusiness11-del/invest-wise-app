@@ -1,0 +1,339 @@
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Question, UserProgress, UserStats, User, Lesson } from "@/entities/all";
+import { agentSDK } from "@/agents";
+import { createPageUrl } from "@/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Heart, Award, CheckCircle2, XCircle, ArrowRight, MessageSquare, Sparkles } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+
+import QuestionCard from "../components/lesson/QuestionCard";
+import CompletionCard from "../components/lesson/CompletionCard";
+import Chatbot from "../components/lesson/Chatbot";
+
+export default function QuizPage() {
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+
+    // Params from URL
+    const quizType = searchParams.get("type"); // 'lesson' or 'practice'
+    const lessonSlug = searchParams.get("lesson_slug"); // for lesson quiz
+    const lessonSlugs = searchParams.getAll("slugs"); // for practice quiz
+    const limit = parseInt(searchParams.get("limit"), 10) || 5;
+
+    const [questions, setQuestions] = useState([]);
+    const [lesson, setLesson] = useState(null);
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Quiz state
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [userAnswers, setUserAnswers] = useState({});
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [isCorrect, setIsCorrect] = useState(false);
+    const [hearts, setHearts] = useState(5);
+    const [view, setView] = useState('quiz'); // quiz, results
+
+    // Chat state
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [conversation, setConversation] = useState(null);
+    const [isChatCreating, setIsChatCreating] = useState(false);
+
+    const slugsString = lessonSlugs.join(',');
+
+    const loadData = useCallback(async () => {
+        try {
+            const currentUser = await User.me();
+            setUser(currentUser);
+            
+            let fetchedQuestions = [];
+            if (quizType === 'lesson' && lessonSlug) {
+                const [lessonData, questionData] = await Promise.all([
+                    Lesson.filter({ slug: lessonSlug }),
+                    Question.filter({ lesson_slug: lessonSlug })
+                ]);
+                setLesson(lessonData[0]);
+                fetchedQuestions = questionData;
+            } else if (quizType === 'practice' && lessonSlugs.length > 0) {
+                 const allQuestions = await Promise.all(
+                    lessonSlugs.map(slug => Question.filter({ lesson_slug: slug }))
+                ).then(results => results.flat());
+
+                fetchedQuestions = allQuestions.sort(() => 0.5 - Math.random()).slice(0, limit);
+            }
+
+            setQuestions(fetchedQuestions.sort(() => 0.5 - Math.random()).slice(0, limit));
+
+            const statsData = await UserStats.filter({ user_email: currentUser.email });
+            if (statsData.length > 0) {
+                setHearts(statsData[0].hearts || 5);
+            }
+        } catch (error) {
+            console.error("Error loading quiz data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [quizType, lessonSlug, slugsString, limit]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+    
+    const handleAnswer = (answer) => {
+        const currentQuestion = questions[currentQuestionIndex];
+        const correct = answer === currentQuestion.correct_answer;
+
+        if (!correct) {
+            const newHearts = hearts - 1;
+            setHearts(newHearts);
+            User.me().then(u => UserStats.filter({ user_email: u.email })).then(stats => {
+                if (stats.length > 0) UserStats.update(stats[0].id, { hearts: newHearts });
+            });
+        }
+        
+        setUserAnswers(prev => ({ ...prev, [currentQuestion.id]: { answer, correct } }));
+        setIsCorrect(correct);
+        setShowFeedback(true);
+        setConversation(null);
+    };
+
+    const handleNext = () => {
+        setShowFeedback(false);
+        setIsChatOpen(false);
+        setConversation(null);
+        if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        } else {
+            completeQuiz();
+        }
+    };
+
+    const completeQuiz = async () => {
+        if (quizType === 'lesson' && lesson) {
+            await completeLesson();
+        }
+        setView('results');
+    };
+
+    const completeLesson = async () => {
+        if (!lesson) return;
+        
+        try {
+            const correctCount = Object.values(userAnswers).filter(a => a.correct).length;
+            const xpEarned = correctCount * 10;
+            
+            const existingProgress = await UserProgress.filter({ 
+                user_email: user.email, 
+                lesson_id: lesson.id 
+            });
+            
+            if (existingProgress.length > 0) {
+                await UserProgress.update(existingProgress[0].id, {
+                    completed: true,
+                    score: correctCount,
+                    xp_earned: xpEarned,
+                    attempts: (existingProgress[0].attempts || 0) + 1,
+                    completion_date: new Date().toISOString()
+                });
+            } else {
+                await UserProgress.create({
+                    user_email: user.email,
+                    lesson_id: lesson.id,
+                    completed: true,
+                    score: correctCount,
+                    xp_earned: xpEarned,
+                    attempts: 1,
+                    completion_date: new Date().toISOString()
+                });
+            }
+            
+            const stats = await UserStats.filter({ user_email: user.email });
+            if (stats.length > 0) {
+                await UserStats.update(stats[0].id, {
+                    total_xp: (stats[0].total_xp || 0) + xpEarned,
+                    lessons_completed: (stats[0].lessons_completed || 0) + 1
+                });
+            }
+        } catch (error) {
+            console.error("Error completing lesson:", error);
+        }
+    };
+
+    const handleOpenChat = async () => {
+        if (conversation) {
+            setIsChatOpen(true);
+            return;
+        }
+
+        setIsChatCreating(true);
+        try {
+            const currentQuestion = questions[currentQuestionIndex];
+            const systemPrompt = `You are Fin, a friendly finance tutor helping students understand concepts. 
+            The student just answered a question ${isCorrect ? 'correctly' : 'incorrectly'}. 
+            Question: ${currentQuestion.question_text}
+            Correct answer: ${currentQuestion.correct_answer}
+            Explanation: ${currentQuestion.explanation || 'No explanation provided'}
+            
+            Help them understand the concept better. Be encouraging and educational.`;
+
+            const conv = await agentSDK.createConversation({
+                name: "Finance Help",
+                agent: { name: "Fin the Finance Tutor" },
+                systemPrompt
+            });
+            
+            setConversation(conv);
+            setIsChatOpen(true);
+        } catch (error) {
+            console.error("Error creating conversation:", error);
+        } finally {
+            setIsChatCreating(false);
+        }
+    };
+
+    const getScore = () => {
+        return Object.values(userAnswers).filter(a => a.correct).length;
+    };
+
+    const getXPEarned = () => {
+        return getScore() * 10;
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    if (view === 'results') {
+        return (
+            <CompletionCard
+                lesson={lesson || { title: "תרגול" }}
+                score={getScore()}
+                totalQuestions={questions.length}
+                xpEarned={getXPEarned()}
+                onContinue={() => navigate(createPageUrl(quizType === 'lesson' ? 'Dashboard' : 'Practice'))}
+                continueText={quizType === 'lesson' ? "חזרה למסך הראשי" : "חזרה לתרגול"}
+            />
+        );
+    }
+
+    if (questions.length === 0) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Card className="max-w-md">
+                    <CardContent className="p-8 text-center">
+                        <h2 className="text-xl font-bold mb-4">אין שאלות זמינות</h2>
+                        <Button onClick={() => navigate(createPageUrl('Dashboard'))}>
+                            חזרה למסך הראשי
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    const currentQuestion = questions[currentQuestionIndex];
+    const progressPercentage = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/50" dir="rtl">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+                <div className="max-w-4xl mx-auto px-6 py-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => navigate(createPageUrl('Dashboard'))}
+                        >
+                            <ArrowRight className="w-5 h-5" />
+                        </Button>
+                        
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1">
+                                {[...Array(Math.min(hearts, 5))].map((_, i) => (
+                                    <Heart key={i} className="w-5 h-5 text-red-500 fill-current" />
+                                ))}
+                            </div>
+                            
+                            <div className="text-sm font-medium">
+                                שאלה {currentQuestionIndex + 1} / {questions.length}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <Progress value={progressPercentage} className="h-2" />
+                </div>
+            </div>
+
+            {/* Question */}
+            <div className="max-w-4xl mx-auto px-6 py-8">
+                <AnimatePresence mode="wait">
+                    {!showFeedback ? (
+                        <motion.div
+                            key={`question-${currentQuestionIndex}`}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <QuestionCard
+                                question={currentQuestion}
+                                onAnswer={handleAnswer}
+                                disabled={false}
+                            />
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key={`feedback-${currentQuestionIndex}`}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                        >
+                            <Card className={`max-w-2xl mx-auto ${
+                                isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                            }`}>
+                                <CardHeader>
+                                    <div className="flex items-center gap-3">
+                                        {isCorrect ? (
+                                            <CheckCircle2 className="w-8 h-8 text-green-600" />
+                                        ) : (
+                                            <XCircle className="w-8 h-8 text-red-600" />
+                                        )}
+                                        <CardTitle className={isCorrect ? 'text-green-700' : 'text-red-700'}>
+                                            {isCorrect ? 'נכון! 🎉' : 'לא נכון'}
+                                        </CardTitle>
+                                    </div>
+                                </CardHeader>
+                                
+                                <CardContent className="space-y-4">
+                                    {currentQuestion.explanation && (
+                                        <div className="bg-white p-4 rounded-lg">
+                                            <p className="font-medium mb-2">הסבר:</p>
+                                            <p className="text-gray-700">{currentQuestion.explanation}</p>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex gap-3">
+                                        <Button
+                                            onClick={handleOpenChat}
+                                            variant="outline"
+                                            className="flex-1"
+                                            disabled={isChatCreating}
+                                        >
+                                            <MessageSquare className="w-4 h-4 ml-2" />
+                                            {isChatCreating ? 'טוען...' : 'שאל את Fin'}
+                                        </Button>
+                                        
+                                        <Button
+                                            onClick={handleNext}
+                                            className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                                        >
+                                            {currentQuestionIndex < questions.length - 1 ? 'השאלה הבאה' : 'סיים'}
+                                            <ArrowLeft className="w-4 h-4 mr-2" />
+                                        </Button>
+                                    </div>

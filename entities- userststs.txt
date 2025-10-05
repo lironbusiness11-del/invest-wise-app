@@ -1,0 +1,56 @@
+{
+  "name": "UserStats",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "User's email"
+    },
+    "total_xp": {
+      "type": "integer",
+      "default": 0,
+      "description": "Total XP earned"
+    },
+    "current_streak": {
+      "type": "integer",
+      "default": 0,
+      "description": "Current daily streak"
+    },
+    "longest_streak": {
+      "type": "integer",
+      "default": 0,
+      "description": "Longest streak achieved"
+    },
+    "lessons_completed": {
+      "type": "integer",
+      "default": 0,
+      "description": "Total lessons completed"
+    },
+    "hearts": {
+      "type": "integer",
+      "default": 3,
+      "description": "Current hearts/lives"
+    },
+    "level": {
+      "type": "integer",
+      "default": 1,
+      "description": "User's current level"
+    },
+    "badges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Array of earned badge IDs"
+    },
+    "last_activity_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last date user was active (for streak tracking)"
+    }
+  },
+  "required": [
+    "user_email"
+  ]
+}

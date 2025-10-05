@@ -1,0 +1,124 @@
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+
+export default function QuestionCard({ question, onAnswer, disabled }) {
+  const [selectedAnswer, setSelectedAnswer] = useState("");
+  const [shortAnswer, setShortAnswer] = useState("");
+
+  const handleSubmit = () => {
+    if (question.question_type === "short_answer") {
+      // For short answers, check if the user's answer contains the key terms
+      const userAnswer = shortAnswer.trim().toLowerCase();
+      const correctAnswer = question.correct_answer.toLowerCase();
+      
+      // Simple matching - if the correct answer is contained in the user's answer or vice versa
+      const isMatch = userAnswer.includes(correctAnswer) || correctAnswer.includes(userAnswer);
+      
+      onAnswer(isMatch ? question.correct_answer : userAnswer);
+    } else {
+      onAnswer(selectedAnswer);
+    }
+  };
+
+  const canSubmit = () => {
+    if (question.question_type === "short_answer") {
+      return shortAnswer.trim().length > 0;
+    }
+    return selectedAnswer.length > 0;
+  };
+
+  const renderQuestion = () => {
+    switch (question.question_type) {
+      case "multiple_choice":
+        return (
+          <div className="space-y-3">
+            {question.answer_choices?.map((choice, index) => (
+              <motion.button
+                key={index}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedAnswer(choice)}
+                disabled={disabled}
+                className={`w-full p-4 text-left rounded-xl border-2 transition-all duration-200 ${
+                  selectedAnswer === choice
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300 bg-white"
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    selectedAnswer === choice ? "border-blue-500" : "border-gray-300"
+                  }`}>
+                    {selectedAnswer === choice && (
+                      <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
+                    )}
+                  </div>
+                  <span className="font-medium">{choice}</span>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        );
+
+      case "true_false":
+        return (
+          <div className="grid grid-cols-2 gap-4">
+            {["True", "False"].map((option) => (
+              <motion.button
+                key={option}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedAnswer(option)}
+                disabled={disabled}
+                className={`p-6 rounded-xl border-2 transition-all duration-200 font-medium ${
+                  selectedAnswer === option
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300 bg-white"
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {option}
+              </motion.button>
+            ))}
+          </div>
+        );
+
+      case "short_answer":
+        return (
+          <div className="space-y-4">
+            <Input
+              placeholder="Type your answer here..."
+              value={shortAnswer}
+              onChange={(e) => setShortAnswer(e.target.value)}
+              className="text-lg p-4 h-14"
+              disabled={disabled}
+            />
+            <p className="text-sm text-gray-500">
+              💡 Tip: Keep your answer concise and focus on key terms
+            </p>
+          </div>
+        );
+
+      case "drag_match":
+        // For now, convert to multiple choice since drag-match is complex
+        return (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 mb-4">
+              Match the concept with the correct definition:
+            </p>
+            {question.answer_choices?.map((choice, index) => (
+              <motion.button
+                key={index}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedAnswer(choice)}
+                disabled={disabled}
+                className={`w-full p-4 text-left rounded-xl border-2 transition-all duration-200 ${
+                  selectedAnswer === choice
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300 bg-white"
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+ 

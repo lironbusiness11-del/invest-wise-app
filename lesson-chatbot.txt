@@ -1,0 +1,109 @@
+import React, { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Send, Sparkles, X } from "lucide-react";
+import { agentSDK } from "@/agents";
+import { AnimatePresence, motion } from "framer-motion";
+import MessageBubble from "./MessageBubble";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+export default function Chatbot({ isOpen, onClose, conversation }) {
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState("");
+    const [isThinking, setIsThinking] = useState(false);
+    const scrollAreaRef = useRef(null);
+
+    useEffect(() => {
+        if (!conversation) return;
+        
+        setIsThinking(true);
+        const unsubscribe = agentSDK.subscribeToConversation(conversation.id, (data) => {
+            setMessages(data.messages);
+            if (data.status !== 'running') {
+              setIsThinking(false);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [conversation]);
+
+    useEffect(() => {
+        // Auto-scroll to bottom
+        if (scrollAreaRef.current) {
+            const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+            if (viewport) {
+                setTimeout(() => viewport.scrollTop = viewport.scrollHeight, 100);
+            }
+        }
+    }, [messages]);
+    
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !conversation) return;
+
+        const text = newMessage;
+        setNewMessage("");
+        setIsThinking(true);
+        
+        try {
+            await agentSDK.addMessage(conversation, {
+                role: "user",
+                content: text,
+            });
+        } catch (error) {
+            console.error("Error sending message:", error);
+            setIsThinking(false);
+        }
+    };
+
+    if (!conversation) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[480px] p-0 gap-0 flex flex-col h-[70vh] max-h-[700px]">
+                <DialogHeader className="p-6 pb-4 border-b">
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                        <Sparkles className="w-5 h-5 text-purple-500" />
+                        Chat with Fin
+                    </DialogTitle>
+                </DialogHeader>
+
+                <ScrollArea ref={scrollAreaRef} className="flex-1 p-6">
+                    <div className="space-y-6">
+                        <AnimatePresence>
+                            {messages.map((message, index) => (
+                                message.role !== 'system' && (
+                                    <motion.div
+                                        key={message.id || index}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <MessageBubble message={message} />
+                                    </motion.div>
+                                )
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                </ScrollArea>
+                
+                <div className="p-4 border-t bg-gray-50">
+                    <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+                        <Input
+                            placeholder="Ask a question..."
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            disabled={isThinking}
+                            className="flex-1"
+                        />
+                        <Button type="submit" size="icon" disabled={isThinking || !newMessage.trim()}>
+                            <Send className="w-4 h-4" />
+                        </Button>
+                    </form>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

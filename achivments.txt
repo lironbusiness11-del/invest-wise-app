@@ -1,0 +1,136 @@
+import React, { useState, useEffect } from "react";
+import { UserStats, UserProgress, User } from "@/entities/all";
+import { motion } from "framer-motion";
+import { Award, Trophy, Flame, Star, Target, BookOpen, TrendingUp, Calendar } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+
+export default function Achievements() {
+  const [userStats, setUserStats] = useState(null);
+  const [userProgress, setUserProgress] = useState([]);
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const currentUser = await User.me();
+      setUser(currentUser);
+      
+      let stats = await UserStats.filter({ user_email: currentUser.email });
+      if (stats.length === 0) {
+        stats = await UserStats.create({
+          user_email: currentUser.email,
+          total_xp: 0,
+          current_streak: 0,
+          lessons_completed: 0,
+          hearts: 3,
+          level: 1,
+          badges: []
+        });
+        setUserStats(stats);
+      } else {
+        setUserStats(stats[0]);
+      }
+      
+      const progress = await UserProgress.filter({ user_email: currentUser.email });
+      setUserProgress(progress);
+    } catch (error) {
+      console.error("Error loading achievements:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const achievements = [
+    {
+      id: "first_lesson",
+      title: "Getting Started",
+      description: "Complete your first lesson",
+      icon: BookOpen,
+      requirement: 1,
+      current: userStats?.lessons_completed || 0,
+      type: "lessons",
+      color: "emerald"
+    },
+    {
+      id: "five_lessons", 
+      title: "Learning Momentum",
+      description: "Complete 5 lessons",
+      icon: TrendingUp,
+      requirement: 5,
+      current: userStats?.lessons_completed || 0,
+      type: "lessons",
+      color: "blue"
+    },
+    {
+      id: "ten_lessons",
+      title: "Dedicated Student", 
+      description: "Complete 10 lessons",
+      icon: Target,
+      requirement: 10,
+      current: userStats?.lessons_completed || 0,
+      type: "lessons",
+      color: "purple"
+    },
+    {
+      id: "halfway_hero",
+      title: "Halfway Hero",
+      description: "Complete 22 lessons (halfway through)",
+      icon: Star,
+      requirement: 22,
+      current: userStats?.lessons_completed || 0,
+      type: "lessons",
+      color: "yellow"
+    },
+    {
+      id: "finance_master",
+      title: "Finance Master",
+      description: "Complete all 44 lessons",
+      icon: Trophy,
+      requirement: 44,
+      current: userStats?.lessons_completed || 0,
+      type: "lessons", 
+      color: "gold"
+    },
+    {
+      id: "xp_collector",
+      title: "XP Collector",
+      description: "Earn 1,000 XP points",
+      icon: Award,
+      requirement: 1000,
+      current: userStats?.total_xp || 0,
+      type: "xp",
+      color: "orange"
+    },
+    {
+      id: "streak_starter",
+      title: "Streak Starter", 
+      description: "Maintain a 7-day learning streak",
+      icon: Flame,
+      requirement: 7,
+      current: userStats?.current_streak || 0,
+      type: "streak",
+      color: "red"
+    },
+    {
+      id: "consistent_learner",
+      title: "Consistent Learner",
+      description: "Maintain a 30-day learning streak",
+      icon: Calendar,
+      requirement: 30,
+      current: userStats?.current_streak || 0,
+      type: "streak",
+      color: "indigo"
+    }
+  ];
+
+  const getColorClasses = (color, earned = false) => {
+    const colors = {
+      emerald: earned ? "from-emerald-500 to-green-500 text-white" : "from-emerald-100 to-green-100 text-emerald-700",
+      blue: earned ? "from-blue-500 to-indigo-500 text-white" : "from-blue-100 to-indigo-100 text-blue-700", 
+ 

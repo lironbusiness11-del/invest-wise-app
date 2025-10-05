@@ -1,0 +1,66 @@
+{
+  "name": "Lesson",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Lesson title"
+    },
+    "slug": {
+      "type": "string",
+      "description": "URL-friendly lesson identifier"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Difficulty level 1-5"
+    },
+    "lesson_number": {
+      "type": "integer",
+      "description": "Sequential lesson number 1-44"
+    },
+    "learning_objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "2-3 key learning objectives"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "description": "Difficulty classification"
+    },
+    "estimated_minutes": {
+      "type": "integer",
+      "description": "Estimated completion time in minutes"
+    },
+    "category": {
+      "type": "string",
+      "description": "Lesson category or theme"
+    },
+    "mini_lecture": {
+      "type": "string",
+      "description": "Short explanation 20-40 words"
+    },
+    "unlock_after": {
+      "type": "integer",
+      "description": "Lesson number that must be completed to unlock this lesson"
+    },
+    "xp_reward": {
+      "type": "integer",
+      "description": "XP points awarded for completing lesson"
+    }
+  },
+  "required": [
+    "title",
+    "slug",
+    "level",
+    "lesson_number"
+  ]
+}
