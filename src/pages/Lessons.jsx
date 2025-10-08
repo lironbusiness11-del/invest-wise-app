@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Lessons.css';
+// import '../styles/Lessons.css';
 
 function Lessons() {
   const navigate = useNavigate();
@@ -79,18 +79,18 @@ function Lessons() {
       <nav className="navbar">
         <div className="navbar-brand">InvestWise</div>
         <ul className="navbar-menu">
-          <li><a href="/">Dashboard</a></li>
-          <li><a href="/lessons" className="active">Lessons</a></li>
-          <li><a href="/quizzes">Quizzes</a></li>
-          <li><a href="/practice">Practice</a></li>
-          <li><a href="/profile">Profile</a></li>
+          <a href="/">Dashboard</a>
+          <a className="active" href="/lessons">Lessons</a>
+          <a href="/quizzes">Quizzes</a>
+          <a href="/practice">Practice</a>
+          <a href="/profile">Profile</a>
         </ul>
       </nav>
 
       <div className="page-container">
         <div className="lessons-header">
-          <h1>Investment Lessons</h1>
-          <p>Build your financial knowledge step by step</p>
+          Investment Lessons
+          Build your financial knowledge step by step
           <div className="progress-stats">
             <div className="stat">
               <span className="stat-number">{completedLessons.length}</span>
@@ -120,8 +120,8 @@ function Lessons() {
             >
               <div className="lesson-icon">{lesson.icon}</div>
               <div className="lesson-content">
-                <h3>{lesson.title}</h3>
-                <p>{lesson.description}</p>
+                {lesson.title}
+                {lesson.description}
                 <div className="lesson-meta">
                   <span className="lesson-duration">⏱️ {lesson.duration}</span>
                   <span
