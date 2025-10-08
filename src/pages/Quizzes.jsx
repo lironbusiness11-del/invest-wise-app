@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Quizzes.css';
+// import '../styles/Quizzes.css';
 
 function Quizzes() {
   const navigate = useNavigate();
@@ -99,11 +99,11 @@ function Quizzes() {
       <nav className="navbar">
         <div className="navbar-brand">InvestWise</div>
         <ul className="navbar-menu">
-          <li><a href="/">Dashboard</a></li>
-          <li><a href="/lessons">Lessons</a></li>
-          <li><a href="/quizzes" className="active">Quizzes</a></li>
-          <li><a href="/practice">Practice</a></li>
-          <li><a href="/profile">Profile</a></li>
+          <a href="/">Dashboard</a>
+          <a href="/lessons">Lessons</a>
+          <a className="active" href="/quizzes">Quizzes</a>
+          <a href="/practice">Practice</a>
+          <a href="/profile">Profile</a>
         </ul>
       </nav>
 
@@ -111,6 +111,7 @@ function Quizzes() {
         <div className="quizzes-header">
           <h1>Investment Quizzes</h1>
           <p>Challenge yourself and earn points</p>
+          
           <div className="quiz-stats">
             <div className="stat">
               <span className="stat-number">{completedQuizzes.length}</span>
